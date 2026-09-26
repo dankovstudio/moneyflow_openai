@@ -1,0 +1,14 @@
+interface:
+  display_name: Fintech UI
+  short_description: Clear, credible finance dashboard interfaces
+  default_prompt: Use $fintech-ui to build and review a clear, responsive finance
+    dashboard.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
