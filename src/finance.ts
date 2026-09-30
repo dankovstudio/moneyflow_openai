@@ -1,60 +1,53 @@
-import {
-  ACCOUNTS,
-  EXPENSE_CATEGORIES,
-  INITIAL_BALANCES_PENCE,
-  type Account,
-  type ExpenseCategory,
-  type Transaction,
-} from './data.ts';
+import { TIME_ZONE, type IsoDate, type YearMonth } from '../shared/contract.ts';
 
-export function calculateDashboard(transactions: Transaction[]) {
-  const balancesPence: Record<Account, number> = { ...INITIAL_BALANCES_PENCE };
-  const categoryTotalsPence = Object.fromEntries(
-    EXPENSE_CATEGORIES.map((category) => [category, 0]),
-  ) as Record<ExpenseCategory, number>;
+// Display formatting only: every amount shown is calculated and stored by the backend.
 
-  let incomePence = 0;
-  let expensesPence = 0;
+const gbp = new Intl.NumberFormat('en-GB', {
+  style: 'currency',
+  currency: 'GBP',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
-  for (const transaction of transactions) {
-    if (transaction.type === 'income') {
-      incomePence += transaction.amountPence;
-      balancesPence[transaction.account] += transaction.amountPence;
-    } else {
-      expensesPence += transaction.amountPence;
-      balancesPence[transaction.account] -= transaction.amountPence;
-      categoryTotalsPence[transaction.category] += transaction.amountPence;
-    }
-  }
+export const formatGBP = (pence: number) => gbp.format(pence / 100);
 
-  const spending = EXPENSE_CATEGORIES
-    .map((category) => ({ category, amountPence: categoryTotalsPence[category] }))
-    .filter(({ amountPence }) => amountPence > 0)
-    .sort((a, b) => b.amountPence - a.amountPence);
-
-  return {
-    incomePence,
-    expensesPence,
-    netPence: incomePence - expensesPence,
-    totalBalancePence: ACCOUNTS.reduce((sum, account) => sum + balancesPence[account], 0),
-    balancesPence,
-    spending,
-    recentTransactions: [...transactions].sort((a, b) => b.date.localeCompare(a.date)),
-  };
-}
-
-export const formatGBP = (pence: number) =>
+/** Exchange rates keep their precision: "£2,543.21", "£0.7912". */
+export const formatRate = (rateGbp: string) =>
   new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: 'GBP',
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(pence / 100);
+    maximumFractionDigits: Number(rateGbp) < 1 ? 6 : 2,
+  }).format(Number(rateGbp));
 
-export const formatDate = (isoDate: string) =>
+export const formatDate = (isoDate: IsoDate) =>
   new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${isoDate}T12:00:00Z`));
+
+export const formatMonth = (month: YearMonth) =>
+  new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(`${month}-15T12:00:00Z`));
+
+export const formatMonthName = (month: YearMonth) =>
+  new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
+    .format(new Date(`${month}-15T12:00:00Z`));
+
+export const formatDateTime = (timestamp: string) =>
+  new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: TIME_ZONE,
+  }).format(new Date(timestamp));
+
+/** Last calendar day of a month, e.g. "2026-09" → "2026-09-30". */
+export function lastDayOfMonth(month: YearMonth): IsoDate {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const day = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  return `${month}-${String(day).padStart(2, '0')}`;
+}
