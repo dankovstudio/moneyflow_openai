@@ -1,17 +1,23 @@
-// MoneyFlow HTTP API on 127.0.0.1:8787. Thin layer over server/service.ts;
-// Vite proxies the browser's /api requests here.
-import { DB_PATH, readEnv } from './env.ts';
+// MoneyFlow HTTP API on HOST:PORT (127.0.0.1:8787 by default). Thin layer over server/service.ts.
+// Locally Vite proxies the browser's /api requests here; in Docker this server also serves dist/.
+import { DB_PATH, HOST, PORT, ROOT_DIR, readEnv } from './env.ts';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { API_PATHS, type HealthResponse } from '../shared/contract.ts';
+import { basicAuth, isUnder } from './auth.ts';
 import { closeDb, getDb } from './db.ts';
 import { mountMcp } from './mcp/index.ts';
 import { ServiceError, createTransaction, getDashboard, getQuote } from './service.ts';
 
-const HOST = '127.0.0.1';
-const PORT = 8787;
+const DIST_DIR = join(ROOT_DIR, 'dist');
+const SPA_INDEX = join(DIST_DIR, 'index.html');
+/** Never answered with the SPA: unknown paths here stay JSON 404s. Step 3 adds '/internal'. */
+const BACKEND_PREFIXES = ['/api', '/mcp'];
 
 const app = express();
 app.disable('x-powered-by');
+app.use(basicAuth);
 app.use(express.json({ limit: '16kb' }));
 
 const queryText = (value: unknown) => (value === undefined ? undefined : String(value));
@@ -35,6 +41,16 @@ app.post(API_PATHS.transactions, async (req, res) => {
 
 // Phase 2: the MCP module attaches /mcp here.
 mountMcp(app);
+
+// Production build (npm run build): the site itself plus SPA fallback. Without dist/ — API only.
+const serveSite = existsSync(SPA_INDEX);
+if (serveSite) {
+  app.use(express.static(DIST_DIR));
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || isUnder(req.path, BACKEND_PREFIXES)) return next();
+    res.sendFile(SPA_INDEX);
+  });
+}
 
 // Every other response is JSON too: the site treats non-JSON as "backend unreachable".
 app.use((req: Request, res: Response) => {
@@ -61,7 +77,11 @@ getDb(); // create the schema and import lesson 1 data before the first request
 const server = app.listen(PORT, HOST);
 server.on('listening', () => {
   const key = readEnv('COINGECKO_DEMO_API_KEY') ? 'configured' : 'missing (crypto will return 503)';
-  console.log(`[moneyflow] API on http://${HOST}:${PORT}  ·  database ${DB_PATH}  ·  CoinGecko key ${key}`);
+  const site = serveSite ? 'site from dist/' : 'API only';
+  const auth = readEnv('APP_PASSWORD') ? 'password on' : 'no password';
+  console.log(
+    `[moneyflow] ${site} on http://${HOST}:${PORT}  ·  ${auth}  ·  database ${DB_PATH}  ·  CoinGecko key ${key}`,
+  );
 });
 server.on('error', (error: NodeJS.ErrnoException) => {
   console.error(

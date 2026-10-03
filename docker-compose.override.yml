@@ -1,0 +1,5 @@
+# Mac only: `docker compose up` merges this file automatically and publishes the site on
+# http://localhost:8787. Dokploy uses docker-compose.yml alone and routes the domain to app:8787.
+services:
+  app:
+    ports: ["127.0.0.1:8787:8787"]
