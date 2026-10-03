@@ -1,0 +1,22 @@
+{
+  "name": "moneyflow-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MoneyFlow MCP as a Vercel Function: reads data from the MoneyFlow read API on the server.",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "mcp-handler": "1.1.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

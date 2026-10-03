@@ -8,17 +8,17 @@ import { readEnv } from './env.ts';
 export const APP_LOGIN = 'moneyflow';
 
 /**
- * Paths that never ask for the password: the liveness check and the localhost-only MCP.
- * Step 3 adds '/internal' here (it checks its own bearer token).
+ * Paths that never ask for the password: the liveness check, the localhost-only MCP
+ * and the MCP read API (it checks its own bearer token, server/internal.ts).
  */
-const PUBLIC_PATHS = [API_PATHS.health, '/mcp'];
+const PUBLIC_PATHS = [API_PATHS.health, '/mcp', '/internal'];
 
 /** True for `prefix` itself and everything below it (`/mcp`, `/mcp/x`), not for `/mcpx`. */
 export const isUnder = (path: string, prefixes: readonly string[]) =>
   prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
 // Hash both sides first so timingSafeEqual always compares equal lengths.
-const sameSecret = (given: string, expected: string) =>
+export const sameSecret = (given: string, expected: string) =>
   timingSafeEqual(createHash('sha256').update(given).digest(), createHash('sha256').update(expected).digest());
 
 function credentials(header: string | undefined): { login: string; password: string } | undefined {

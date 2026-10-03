@@ -14,6 +14,7 @@ services:
     environment:
       COINGECKO_DEMO_API_KEY: ${COINGECKO_DEMO_API_KEY:-}
       APP_PASSWORD: ${APP_PASSWORD:-}
+      MCP_READ_TOKEN: ${MCP_READ_TOKEN:-}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 10s

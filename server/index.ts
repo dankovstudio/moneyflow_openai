@@ -7,13 +7,14 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { API_PATHS, type HealthResponse } from '../shared/contract.ts';
 import { basicAuth, isUnder } from './auth.ts';
 import { closeDb, getDb } from './db.ts';
+import { INTERNAL_PREFIX, mountInternal } from './internal.ts';
 import { mountMcp } from './mcp/index.ts';
 import { ServiceError, createTransaction, getDashboard, getQuote } from './service.ts';
 
 const DIST_DIR = join(ROOT_DIR, 'dist');
 const SPA_INDEX = join(DIST_DIR, 'index.html');
-/** Never answered with the SPA: unknown paths here stay JSON 404s. Step 3 adds '/internal'. */
-const BACKEND_PREFIXES = ['/api', '/mcp'];
+/** Never answered with the SPA: unknown paths here stay JSON 404s. */
+const BACKEND_PREFIXES = ['/api', '/mcp', INTERNAL_PREFIX];
 
 const app = express();
 app.disable('x-powered-by');
@@ -41,6 +42,9 @@ app.post(API_PATHS.transactions, async (req, res) => {
 
 // Phase 2: the MCP module attaches /mcp here.
 mountMcp(app);
+
+// Step 3: read API for the MCP on Vercel (/internal/mcp/*, bearer token instead of the password).
+mountInternal(app);
 
 // Production build (npm run build): the site itself plus SPA fallback. Without dist/ — API only.
 const serveSite = existsSync(SPA_INDEX);
@@ -79,8 +83,9 @@ server.on('listening', () => {
   const key = readEnv('COINGECKO_DEMO_API_KEY') ? 'configured' : 'missing (crypto will return 503)';
   const site = serveSite ? 'site from dist/' : 'API only';
   const auth = readEnv('APP_PASSWORD') ? 'password on' : 'no password';
+  const readApi = readEnv('MCP_READ_TOKEN') ? 'MCP read API on' : 'MCP read API off';
   console.log(
-    `[moneyflow] ${site} on http://${HOST}:${PORT}  ·  ${auth}  ·  database ${DB_PATH}  ·  CoinGecko key ${key}`,
+    `[moneyflow] ${site} on http://${HOST}:${PORT}  ·  ${auth}  ·  ${readApi}  ·  database ${DB_PATH}  ·  CoinGecko key ${key}`,
   );
 });
 server.on('error', (error: NodeJS.ErrnoException) => {
